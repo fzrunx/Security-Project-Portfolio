@@ -185,6 +185,8 @@ Wazuh에서 처리되는 보안 이벤트와 대응 상태를 Grafana 대시보�
 - 차단 완료 항목 확인
 - 대응 상태 변화 모니터링
 
+## 🎬 Project Demo
+<video src="https://github.com/fzrunx/Security-Project-Portfolio/issues/1#issue-6367348078" controls width="100%"></video>
 
 
 ## 🔧 Project Considerations & Limitations
