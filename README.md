@@ -187,7 +187,7 @@ Wazuh에서 처리되는 보안 이벤트와 대응 상태를 Grafana 대시보�
 
 ## 🎬 Project Demo
 
-https://github.com/user-attachments/assets/실제-영상-파일-ID
+https://github.com/user-attachments/assets/c6d7a6d5-50c4-4856-b5b6-94ae58189ef0
 
 
 ## 🔧 Project Considerations & Limitations
