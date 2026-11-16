@@ -31,45 +31,9 @@ Wazuh의 룰 기반 로그 탐지를 중심으로 Shuffle을 통한 대응 흐�
 
 ## 🏗️ System Architecture
 
-```mermaid
-flowchart TB
-    Internet((Internet))
-    subgraph Firewall["pfSense Firewall"]
-        FW["Network Segmentation<br/>WAN / DMZ / LAN / SIEM"]
-    end
+![System Architecture](./api_security_architecture_readme.png)
 
-    subgraph DMZ["DMZ - Web Service"]
-        WEB["Apache / PHP 7.4<br/>Shopping Mall & API"]
-        WAF["ModSecurity v2 WAF"]
-    end
-
-    subgraph LAN["LAN - Database"]
-        DB[("MySQL")]
-    end
-
-    subgraph SIEM["SIEM Network"]
-        WAZUH["Wazuh SIEM<br/>Log Collection & Rule Detection"]
-        SHUFFLE["Shuffle<br/>Workflow Orchestration"]
-        BLOCK["Custom block-api"]
-        GRAFANA["Grafana<br/>Monitoring Dashboard"]
-        OS["OpenSearch"]
-    end
-
-    Internet --> FW
-    FW --> WEB
-    WEB --> WAF
-    WAF --> DB
-
-    WEB -. "Security Logs" .-> WAZUH
-    WAZUH --> SHUFFLE
-    SHUFFLE --> BLOCK
-    BLOCK -. "SSH Block Command" .-> FW
-
-    WAZUH --> OS
-    OS --> GRAFANA
-```
-
-> 네트워크 구역을 분리하고, 웹 서비스에서 발생한 보안 로그를 SIEM 환경으로 전달하여 탐지와 대응이 이어지도록 구성했습니다.
+> 네트워크 구역을 분리하고, Wazuh의 로그 탐지부터 Shuffle의 대응 처리, pfSense의 IP 차단까지 연결한 시스템 구성도입니다.
 
 
 
@@ -95,22 +59,11 @@ flowchart TB
 
 공격 유형과 위험도에 따라 대응 방식을 두 가지로 구분했습니다.
 
-### 1. 대량 요청 공격 — 자동 차단
+### 1. 대량 요청 공격 — 자동 차단 (Detection & Response Flow)
 
-짧은 시간 동안 비정상적으로 많은 요청이 발생하는 상황을 대상으로 자동 차단 흐름을 구성했습니다.
+공격 유형과 위험도에 따라 자동 차단과 관리자 승인 방식으로 대응합니다.
 
-```mermaid
-flowchart TD
-    A["비정상적인 대량 요청 발생"] --> B["Wazuh 로그 수집"]
-    B --> C["탐지 룰 조건 충족"]
-    C --> D["Wazuh Alert 생성"]
-    D --> E["Shuffle 이벤트 전달"]
-    E --> F["block-api 차단 요청"]
-    F --> G["pfSense IP 차단"]
-    G --> H["차단 완료 상태 로그 전달"]
-    H --> I["Wazuh 수집"]
-    I --> J["Grafana 차단 현황 표시"]
-```
+![Detection & Response Flow](./detection_response_flow.png)
 
 **대응 기준**
 
