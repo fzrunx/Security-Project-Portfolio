@@ -1,95 +1,227 @@
-# 🛡️ Shadow API 및 로직 결함 공격 탐지 프로젝트 (AI SIEM)
+# 🛡️ API Security Monitoring & Automated Response System
 
-본 프로젝트는 **기존 경계 방화벽(WAF/IPS)을 우회하는 Shadow API(미관리 API) 및 IDOR(BOLA, 권한 우회) 공격을 인공지능(Random Forest) 기반 행동 분석으로 실시간 탐지하는 지능형 보안관제 시스템** 구축 프로젝트입니다.
+**Wazuh · Shuffle · pfSense 기반 API 위협 탐지 및 대응 시스템**
 
----
+> 웹 서비스에서 발생하는 비정상적인 API 요청을 탐지하고, 공격 유형에 따라 자동 차단 또는 관리자 승인 기반으로 대응하는 보안 모니터링 시스템입니다.
 
-## 📁 프로젝트 디렉터리 구조
 
-GitHub 협업 및 재현성을 위해 가상머신 전체 이미지 대신 **인프라 설정 코드(IaC), 소스코드, 머신러닝 파이프라인, 문서** 중심으로 구성되어 있습니다.
 
-```text
-.
-├── 📜 README.md                                  # [루트 가이드] 프로젝트 개요, 구조 및 빠른 시작 가이드 (본 문서)
-├── 📜 .gitignore                                 # VMware 가상머신, 대용량 로그 및 캐시 제외 설정
-│
-├── 📂 docs/                                      # [프로젝트 문서 통합 관리]
-│   ├── planning/                                 # 프로젝트 제안서, 네트워크 아키텍처, 로그 수집 명세서
-│   │   ├── 계획서.md
-│   │   ├── 인프라_구축_실행가이드_및_작업로그.md
-│   │   └── Wazuh_통합_수집대상_로그명세서.md
-│   └── troubleshooting/                          # 단계별 장애 분석 및 트러블슈팅 리포트
-│       ├── 01_웹서버_Wazuh_로그연동_및_권한_장애해결.md
-│       └── 02_폐쇄망_DMZ웹서버_Docker빌드_외부통신제한_해결.md
-│
-├── 📂 infra/                                     # [인프라 설정 및 배포 스크립트] (VMware 환경 재현용)
-│   ├── fortigate/                                # FortiGate 방화벽 설정 백업 (.conf) 및 라우팅/VIP 명세
-│   ├── web_dmz/                                  # DMZ 웹서버 docker-compose.yml, Dockerfile, 웹서버 설정
-│   └── wazuh/                                    # Wazuh 매니저/에이전트 수집 설정(ossec.conf), 커스텀 규칙
-│
-├── 📂 web/                                       # [취약한 웹 애플리케이션 소스코드] (구 sesac_shop_web_php)
-│   ├── src/                                      # Apache + PHP 7.4 + MySQL 쇼핑몰 소스코드
-│   └── docker-compose.yml                        # 웹 애플리케이션 로컬 실행용 Compose 설정
-│
-└── 📂 ml/                                        # [머신러닝(Machine Learning) 파이프라인]
-    ├── data/
-    │   ├── raw_logs/                             # 수집 원천 로그 (대용량은 .gitignore, 샘플만 관리)
-    │   └── features_dataset.csv                  # 30초 시간 창(Window) 집계 전처리 데이터셋
-    ├── models/                                   # 학습된 머신러닝 모델 가중치 (.pkl, .onnx)
-    ├── src/
-    │   └── 01_preprocess.py                      # 8대 행동 특징값(Feature) 추출 및 전처리 스크립트
-    └── requirements.txt                          # Python 라이브러리 의존성 목록
+## 📌 Project Overview
+
+웹 서비스가 운영되면서 발생하는 비정상적인 API 접근과 반복적인 요청을 탐지하고, 보안 이벤트에 신속하게 대응할 수 있도록 시스템을 구축했습니다.
+
+Wazuh의 룰 기반 로그 탐지를 중심으로 Shuffle을 통한 대응 흐름을 구성했으며, pfSense 방화벽과 연동하여 IP 차단을 수행합니다.
+
+| 구분 | 내용 |
+|:---|:---|
+| 프로젝트 | API Security Monitoring & Automated Response |
+| 개발 형태 | 팀 프로젝트 |
+| 주요 목적 | API 위협 탐지 및 대응 자동화 |
+| 대상 서비스 | PHP 기반 쇼핑몰 및 API 서버 |
+| 주요 기술 | Wazuh, Shuffle, pfSense, Grafana |
+
+
+## 🎯 Project Goals
+
+- **API 위협 탐지** — Wazuh 룰을 활용한 비정상적인 요청 및 공격 이벤트 탐지
+- **대응 프로세스 구성** — 공격 유형에 따른 자동 차단과 관리자 승인 방식 분리
+- **네트워크 보안 강화** — pfSense를 활용한 네트워크 분리 및 IP 차단
+- **보안 현황 시각화** — Grafana를 통한 탐지 이벤트 및 대응 상태 확인
+
+
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TB
+    Internet((Internet))
+    subgraph Firewall["pfSense Firewall"]
+        FW["Network Segmentation<br/>WAN / DMZ / LAN / SIEM"]
+    end
+
+    subgraph DMZ["DMZ - Web Service"]
+        WEB["Apache / PHP 7.4<br/>Shopping Mall & API"]
+        WAF["ModSecurity v2 WAF"]
+    end
+
+    subgraph LAN["LAN - Database"]
+        DB[("MySQL")]
+    end
+
+    subgraph SIEM["SIEM Network"]
+        WAZUH["Wazuh SIEM<br/>Log Collection & Rule Detection"]
+        SHUFFLE["Shuffle<br/>Workflow Orchestration"]
+        BLOCK["Custom block-api"]
+        GRAFANA["Grafana<br/>Monitoring Dashboard"]
+        OS["OpenSearch"]
+    end
+
+    Internet --> FW
+    FW --> WEB
+    WEB --> WAF
+    WAF --> DB
+
+    WEB -. "Security Logs" .-> WAZUH
+    WAZUH --> SHUFFLE
+    SHUFFLE --> BLOCK
+    BLOCK -. "SSH Block Command" .-> FW
+
+    WAZUH --> OS
+    OS --> GRAFANA
 ```
 
----
+> 네트워크 구역을 분리하고, 웹 서비스에서 발생한 보안 로그를 SIEM 환경으로 전달하여 탐지와 대응이 이어지도록 구성했습니다.
 
-## 🌐 인프라 및 네트워크 아키텍처
 
-```text
-[공격자: PentAGI] 192.168.80.135
-       │
-       ▼ (외부 인입 트래픽)
-┌─────────────────────────────────────────────────────────────┐
-│ 1. 경계 방화벽: FortiGate-VM                                  │
-│   • WAN (외부 접근): 192.168.0.141                            │
-│   • 포트포워딩(VIP):                                          │
-│       - 2222 ➔ DMZ 웹서버 SSH (22)                           │
-│       - 8822 ➔ Wazuh 관제서버 SSH (22)                       │
-│       - 8000 ➔ DMZ 웹서버 HTTP (80)                          │
-│   • Syslog 발송: UDP 514 포트로 Wazuh 관제서버에 실시간 전송    │
-└──────────────┬──────────────────────────────┬───────────────┘
-               │ (DMZ 망: 192.168.20.0/24)    │ (LAN 망: 192.168.10.0/24)
-               ▼                              ▼
-┌──────────────────────────────┐ ┌──────────────────────────────┐
-│ 2. DMZ 웹서버                │ │ 3. Wazuh 관제 서버           │
-│   • IP: 192.168.20.10        │ │   • IP: 192.168.10.30        │
-│   • 컨테이너: shop-web-web-1 │ │   • 프로토콜: 1514 (Agent)   │
-│   • SSH: ubuntu / ****       │ │   • SSH: dongyoung / ****    │
-│   • Wazuh Agent ID: 004      │ │   • Web UI: admin/********** │
-└──────────────────────────────┘ └──────────────────────────────┘
+
+## ⚙️ Technology Stack
+
+| Category | Technology | Role |
+|:---|:---|:---|
+| Web Server | Apache | 웹 서비스 운영 |
+| Backend | PHP 7.4 | 쇼핑몰 및 API 서버 |
+| Database | MySQL | 서비스 데이터 관리 |
+| Firewall | pfSense | 네트워크 분리 및 IP 차단 |
+| IPS | Suricata | 네트워크 침입 탐지 및 방지 |
+| WAF | ModSecurity v2 | 웹 요청 필터링 |
+| SIEM | Wazuh | 로그 수집 및 룰 기반 탐지 |
+| Search Engine | OpenSearch | 이벤트 데이터 저장 및 조회 |
+| SOAR | Shuffle | 보안 이벤트 기반 대응 워크플로우 |
+| Dashboard | Grafana | 탐지 및 대응 현황 시각화 |
+| Custom API | block-api | pfSense 차단 명령 전달 |
+
+
+
+## 🔄 Detection & Response Flow
+
+공격 유형과 위험도에 따라 대응 방식을 두 가지로 구분했습니다.
+
+### 1. 대량 요청 공격 — 자동 차단
+
+짧은 시간 동안 비정상적으로 많은 요청이 발생하는 상황을 대상으로 자동 차단 흐름을 구성했습니다.
+
+```mermaid
+flowchart TD
+    A["비정상적인 대량 요청 발생"] --> B["Wazuh 로그 수집"]
+    B --> C["탐지 룰 조건 충족"]
+    C --> D["Wazuh Alert 생성"]
+    D --> E["Shuffle 이벤트 전달"]
+    E --> F["block-api 차단 요청"]
+    F --> G["pfSense IP 차단"]
+    G --> H["차단 완료 상태 로그 전달"]
+    H --> I["Wazuh 수집"]
+    I --> J["Grafana 차단 현황 표시"]
 ```
 
+**대응 기준**
+
+- 프로젝트에서 설정한 기준: 60초 이내 30회 요청
+- Wazuh 룰을 통해 조건에 해당하는 이벤트 탐지
+- Shuffle이 block-api에 차단 요청 전달
+- block-api가 pfSense에 차단 명령 전달
+- 차단 완료 상태를 Wazuh로 전달하고 Grafana에서 확인
+
+### 2. Shadow API — 관리자 승인 후 차단
+
+관리되지 않는 API 접근과 같이 정상적인 사용자의 요청과 구분이 필요한 상황은 자동 차단하지 않고 관리자의 판단을 거치도록 구성했습니다.
+
+```mermaid
+flowchart TD
+    A["관리되지 않는 API 접근"] --> B["Wazuh 로그 수집"]
+    B --> C["탐지 룰 조건 충족"]
+    C --> D["Wazuh Alert 생성"]
+    D --> E["Shuffle 이벤트 전달"]
+    E --> F["승인 대기 상태 전달"]
+    F --> G["Grafana 승인 대기 표시"]
+    G --> H["관리자 승인 페이지"]
+    H --> I["차단 승인"]
+    I --> J["block-api 차단 요청"]
+    J --> K["pfSense IP 차단"]
+    K --> L["차단 완료 상태 전달"]
+    L --> M["Grafana 차단 완료 표시"]
+```
+
+**대응 방식**
+
+- Wazuh가 관련 로그를 룰 기반으로 탐지
+- Shuffle이 승인 대기 상태를 전달
+- Grafana에서 승인 대기 항목 확인
+- 관리자가 별도 승인 페이지에서 차단 여부 결정
+- 승인 시 block-api가 pfSense에 차단 명령 전달
+- 차단 완료 상태를 Wazuh에 전달하고 Grafana에서 상태 확인
+
+
+
+## 💡 Key Implementation
+
+### 1. 자동 차단과 수동 승인 분리
+
+모든 공격을 자동 차단하면 정상적인 사용자의 요청까지 차단할 가능성이 있습니다.
+
+이를 고려하여 대응 방식을 구분했습니다.
+
+| 구분 | 대량 요청 공격 | Shadow API |
+|:---|:---|:---|
+| 대응 방식 | 자동 차단 | 관리자 승인 |
+| 판단 기준 | 설정된 요청 횟수 및 시간 조건 | 관리되지 않는 API 접근 이벤트 |
+| 차단 실행 | 자동 요청 | 관리자 승인 후 실행 |
+| 목적 | 신속한 대응 | 오탐으로 인한 피해 최소화 |
+
+※ 30회/60초는 프로젝트에서 설정한 대응 기준이며, 모든 비정상 요청이나 자동화 공격을 정확하게 판별하는 기준은 아닙니다.
+
+### 2. Custom block-api 개발
+
+폐쇄망 환경에서 외부 연동 및 알림 방식에 제약이 있어, 차단 명령을 전달하는 별도의 block-api를 구현했습니다.
+
+- Shuffle로부터 차단 요청 수신
+- pfSense에 SSH 기반 차단 명령 전달
+- 차단 요청과 실제 방화벽 동작 연결
+
+### 3. Grafana 기반 대응 현황 시각화
+
+Wazuh에서 처리되는 보안 이벤트와 대응 상태를 Grafana 대시보드에서 확인할 수 있도록 구성했습니다.
+
+- 탐지 이벤트 확인
+- 승인 대기 항목 확인
+- 차단 완료 항목 확인
+- 대응 상태 변화 모니터링
+
+## 🎬 Project Demo
+
+https://github.com/user-attachments/assets/c6d7a6d5-50c4-4856-b5b6-94ae58189ef0
+
+
+## 🔧 Project Considerations & Limitations
+
+### 폐쇄망 환경에 따른 대응 구조 변경
+
+초기에는 Shuffle을 활용해 공격 알림을 내부 메신저로 전달하고, 관리자가 메신저에서 차단 여부를 선택하는 형태를 구상했습니다.
+
+하지만 폐쇄망 환경에서 외부 서비스 및 메신저 연동에 제약이 발생했습니다.
+
+이에 따라 별도의 block-api와 관리자 승인 페이지를 개발하여 대응 구조를 변경했습니다.
+
+### 개선 방향
+
+- 요청 횟수뿐 아니라 사용자 및 IP별 정상 트래픽 패턴을 고려한 탐지 기준 개선
+- 정상적인 서비스 요청이 차단되는 오탐 상황을 줄이기 위한 예외 처리
+- 차단 시간 설정 및 차단 해제 기능 보완
+- 공격 유형별 탐지 룰과 대응 정책 세분화
+
+
+
+## 👥 Project Outcome
+
+이번 프로젝트를 통해 웹 서비스에서 발생하는 로그를 수집하고, 탐지 룰을 기반으로 보안 이벤트를 생성한 뒤 대응 시스템과 연동하는 과정을 경험했습니다.
+
+특히 단순히 공격을 탐지하는 데서 끝나는 것이 아니라, 공격 유형에 따라 자동 차단과 관리자 승인 방식을 구분하고 방화벽과 연동하는 대응 구조를 구현했습니다.
+
+**주요 경험**
+- Wazuh 룰 기반 로그 탐지 및 이벤트 처리
+- Shuffle을 활용한 보안 대응 워크플로우 구성
+- pfSense 방화벽 연동 및 IP 차단
+- Custom block-api 및 관리자 승인 페이지 구현
+- Grafana 기반 보안 이벤트 모니터링
+
 ---
 
-## 📋 핵심 문서 및 모듈 가이드
-
-| 분류 | 문서 / 모듈 경로 | 주요 내용 및 역할 |
-| :--- | :--- | :--- |
-| **기획 & 설계** | [docs/planning/계획서.md](file:///d:/Project/docs/planning/계획서.md) | 연구 배경, Shadow API 탐지 필요성, Random Forest 모델 및 탐지 메커니즘 전반 |
-| **인프라 명세** | [docs/planning/인프라_구축_실행가이드_및_작업로그.md](file:///d:/Project/docs/planning/인프라_구축_실행가이드_및_작업로그.md) | 방화벽 인터페이스 IP, VIP 매핑, 라우팅 테이블, 서버 설치 명령어 히스토리 |
-| **로그 수집** | [docs/planning/Wazuh_통합_수집대상_로그명세서.md](file:///d:/Project/docs/planning/Wazuh_통합_수집대상_로그명세서.md) | 6대 웹서버 로그, DB 로그, 방화벽 Syslog 수집 경로, 포맷 및 잡음 차단 정책 |
-| **트러블슈팅** | [docs/troubleshooting/01_웹서버_Wazuh_로그연동_및_권한_장애해결.md](file:///d:/Project/docs/troubleshooting/01_웹서버_Wazuh_로그연동_및_권한_장애해결.md) | Docker 볼륨 권한 거부 해결, Apache 호스트 실측 경로 매핑, 잡음 제거 |
-| **트러블슈팅** | [docs/troubleshooting/02_폐쇄망_DMZ웹서버_Docker빌드_외부통신제한_해결.md](file:///d:/Project/docs/troubleshooting/02_폐쇄망_DMZ웹서버_Docker빌드_외부통신제한_해결.md) | 방화벽 Outbound 차단 환경에서 Docker 오프라인 빌드/마운트 우회 해결 |
-| **ML 파이프라인** | [ml/src/01_preprocess.py](file:///d:/Project/ml/src/01_preprocess.py) | 원천 로그에서 30초 윈도우 단위 8대 행동 특징값(`req_count`, `interval_std` 등) 추출 |
-
----
-
-## 🤝 팀 협업 및 작업 수칙
-
-1. **대용량 파일 커밋 금지:**
-   - VMware 디스크(`.vmdk`, `.vmx`), 100MB 이상의 원천 로그 데이터, 가상머신 스냅샷은 Git에 업로드하지 않습니다. (`.gitignore` 확인)
-2. **로그 수집 무결성 유지:**
-   - 웹서버는 Docker Compose 환경이므로 Apache 로그는 호스트의 `/home/ubuntu/sesac_shop_web_php/logs/apache/` 경로를 준수합니다.
-   - 불필요한 시스템 잡음 로그(`journald`, `df -P`, `dpkg.log` 등)는 모델 피처 오염 방지를 위해 비활성화 상태를 유지합니다.
-3. **새로운 장애/설정 변경 시:**
-   - 신규 이슈나 트러블슈팅 발생 시 `docs/troubleshooting/` 폴더에 일련번호(`03_...`, `04_...`) 형태로 문서를 추가하고 본 README의 테이블을 최신화합니다.
+**Information Security Project | Team Project**
