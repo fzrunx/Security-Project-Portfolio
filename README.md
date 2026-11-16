@@ -57,15 +57,11 @@ Wazuh의 룰 기반 로그 탐지를 중심으로 Shuffle을 통한 대응 흐�
 
 ## 🔄 Detection & Response Flow
 
-공격 유형과 위험도에 따라 대응 방식을 두 가지로 구분했습니다.
-
-### 1. 대량 요청 공격 — 자동 차단 (Detection & Response Flow)
-
 공격 유형과 위험도에 따라 자동 차단과 관리자 승인 방식으로 대응합니다.
 
 ![Detection & Response Flow](./detection_response_flow.png)
 
-**대응 기준**
+**1. 대량 요청 공격 — 자동 차단 대응 기준**
 
 - 프로젝트에서 설정한 기준: 60초 이내 30회 요청
 - Wazuh 룰을 통해 조건에 해당하는 이벤트 탐지
@@ -73,27 +69,8 @@ Wazuh의 룰 기반 로그 탐지를 중심으로 Shuffle을 통한 대응 흐�
 - block-api가 pfSense에 차단 명령 전달
 - 차단 완료 상태를 Wazuh로 전달하고 Grafana에서 확인
 
-### 2. Shadow API — 관리자 승인 후 차단
 
-관리되지 않는 API 접근과 같이 정상적인 사용자의 요청과 구분이 필요한 상황은 자동 차단하지 않고 관리자의 판단을 거치도록 구성했습니다.
-
-```mermaid
-flowchart TD
-    A["관리되지 않는 API 접근"] --> B["Wazuh 로그 수집"]
-    B --> C["탐지 룰 조건 충족"]
-    C --> D["Wazuh Alert 생성"]
-    D --> E["Shuffle 이벤트 전달"]
-    E --> F["승인 대기 상태 전달"]
-    F --> G["Grafana 승인 대기 표시"]
-    G --> H["관리자 승인 페이지"]
-    H --> I["차단 승인"]
-    I --> J["block-api 차단 요청"]
-    J --> K["pfSense IP 차단"]
-    K --> L["차단 완료 상태 전달"]
-    L --> M["Grafana 차단 완료 표시"]
-```
-
-**대응 방식**
+**2. Shadow API — 관리자 승인 후 차단 대응 방식**
 
 - Wazuh가 관련 로그를 룰 기반으로 탐지
 - Shuffle이 승인 대기 상태를 전달
